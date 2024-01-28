@@ -1,0 +1,68 @@
+use itertools::Itertools;
+
+static INPUT: [&str; 98] = 
+static DIRS: [(i64,i64); 8] = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)];
+
+fn should_swap_p1(map: &[Vec<char>], i: usize, j: usize) -> bool {
+  let mut neighbours = DIRS.iter()
+    .map(|&(dy,dx)| (i as i64 + dy, j as i64 + dx))
+    .filter_map(|(y,x)| map.get(y as usize).and_then(|v| v.get(x as usize)));
+  match map[i][j] {
+    'L' => neighbours.all(|&c| c != '#'),
+    '#' => neighbours.filter(|&&c| c == '#').count() >= 4,
+    _ => unreachable!()
+  }
+}
+
+fn find_neighbour(
+  map: &[Vec<char>],
+  (dy, dx): (i64, i64),
+  (i,j): (usize,usize),
+) -> Option<char> {
+  let (mut i, mut j) = (i as i64, j as i64);
+  loop {
+    i += dy;
+    j += dx;
+    let tile = map.get(i as usize)
+      .and_then(|row| row.get(j as usize))
+      .copied();
+    if tile != Some('.') {
+      return tile;
+    }
+  }
+}
+
+fn should_swap_p2(map: &[Vec<char>], i: usize, j: usize) -> bool {
+  let mut neighbours = DIRS.iter().filter_map(|&dir| find_neighbour(&map, dir, (i,j)));
+  match map[i][j] {
+    'L' => neighbours.all(|c| c != '#'),
+    '#' => neighbours.filter(|&c| c == '#').count() >= 5,
+    _ => unreachable!()
+  }
+}
+
+fn run_simulation<F: Fn(&[Vec<char>], usize, usize) -> bool>(should_swap: F) -> usize {
+  let mut map = INPUT.iter()
+    .map(|s| s.chars().collect::<Vec<_>>())
+    .collect::<Vec<_>>();
+  let mut to_swap = Vec::new();
+  loop {
+    to_swap.clear();
+    for (i,j) in (0..map.len()).cartesian_product(0..map[0].len()) {
+      if map[i][j] != '.' && should_swap(&map,i,j) {
+        to_swap.push((i,j));
+      }
+    }
+    for &(i,j) in &to_swap {
+      map[i][j] = if map[i][j] == 'L' {'#'} else {'L'};
+    }
+    if to_swap.is_empty() { break; }
+  }
+  map.iter().flatten().filter(|&&c| c == '#').count()
+}
+
+aoc2020::main! {
+  let part_one = run_simulation(should_swap_p1);
+  let part_two = run_simulation(should_swap_p2);
+  (part_one, part_two)
+}
